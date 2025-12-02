@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Profilbild mit angepasstem Ring</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+  canvas { border: 1px solid #ddd; cursor: grab; display: block; margin: 0 auto; }
+  .slider-container { width: 300px; margin: 10px auto; }
+</style>
+</head>
+<body>
+<h2>Profilbild mit angepasstem Ring</h2>
+<input type="file" id="upload" accept="image/*"><br><br>
+
+<canvas id="canvas" width="400" height="400"></canvas>
+
+<div class="slider-container">
+  <label for="imgSlider">Profilbildgröße:</label>
+  <input type="range" id="imgSlider" min="0.1" max="3" step="0.01" value="1">
+</div>
+
+<br>
+<button id="dlBtn">Bild herunterladen</button>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const upload = document.getElementById("upload");
+const dlBtn = document.getElementById("dlBtn");
+const imgSlider = document.getElementById("imgSlider");
+
+let img = new Image();
+let ring = new Image();
+ring.src = "ring.png"; // Dein Ringbild
+
+// Profilbild
+let imgX = 0, imgY = 0, imgScale = 1;
+
+// Dragging
+let isDragging = false;
+let dragStartX = 0, dragStartY = 0;
+let startX = 0, startY = 0;
+
+// Profilbild hochladen
+upload.addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    img.src = URL.createObjectURL(file);
+});
+
+img.onload = () => {
+    imgScale = 1;
+    imgX = (canvas.width - img.width) / 2;
+    imgY = (canvas.height - img.height) / 2;
+    draw();
+};
+
+// Zeichnen
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = canvas.width / 2;
+
+    // Kreis-Clip für Profilbild
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+
+    // Profilbild zeichnen
+    ctx.drawImage(img, imgX, imgY, img.width * imgScale, img.height * imgScale);
+    ctx.restore();
+
+    // Ring exakt als Overlay über den Rand legen
+    ctx.drawImage(ring, 0, 0, canvas.width, canvas.height);
+}
+
+// Dragging Profilbild
+canvas.addEventListener("mousedown", e => {
+    const mx = e.offsetX;
+    const my = e.offsetY;
+
+    if (mx >= imgX && mx <= imgX + img.width * imgScale &&
+        my >= imgY && my <= imgY + img.height * imgScale) {
+        isDragging = true;
+        dragStartX = mx;
+        dragStartY = my;
+        startX = imgX;
+        startY = imgY;
+        canvas.style.cursor = "grabbing";
+    }
+});
+
+canvas.addEventListener("mousemove", e => {
+    if (!isDragging) return;
+    const dx = e.offsetX - dragStartX;
+    const dy = e.offsetY - dragStartY;
+    imgX = startX + dx;
+    imgY = startY + dy;
+    draw();
+});
+
+canvas.addEventListener("mouseup", () => {
+    isDragging = false;
+    canvas.style.cursor = "grab";
+});
+
+canvas.addEventListener("mouseleave", () => {
+    isDragging = false;
+    canvas.style.cursor = "grab";
+});
+
+// Zoom über Slider
+imgSlider.addEventListener("input", () => {
+    const oldScale = imgScale;
+    const newScale = parseFloat(imgSlider.value);
+    imgScale = newScale;
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
+    imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+
+    draw();
+});
+
+// Download
+dlBtn.addEventListener("click", () => {
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "profilbild_mit_ring.png";
+    a.click();
+});
+</script>
+</body>
+</html>
