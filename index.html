@@ -181,11 +181,46 @@ imgSlider.addEventListener("input", () => {
 });
 
 // Download
-dlBtn.addEventListener("click", () => {
-    const a = document.createElement("a");
-    a.href = canvas.toDataURL("image/png");
-    a.download = "profilbild_mit_ring.png";
-    a.click();
+dlBtn.addEventListener("click", async () => {
+    canvas.toBlob(async (blob) => {
+        if (!blob) {
+            alert("Das Bild konnte nicht erstellt werden.");
+            return;
+        }
+
+        const file = new File(
+            [blob],
+            "profilbild_mit_ring.png",
+            { type: "image/png" }
+        );
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: "Profilbild mit Ring"
+                });
+                return;
+            } catch (error) {
+                console.log("Teilen abgebrochen:", error);
+            }
+        }
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+
+        a.href = url;
+        a.download = "profilbild_mit_ring.png";
+
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 1000);
+    }, "image/png");
+});
 });
 </script>
 </body>
