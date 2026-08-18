@@ -414,13 +414,20 @@ function draw() {
 
   if (ringLoaded) {
 
+if (ringLoaded) {
+
+    const ringSize = canvas.width + 4;
+    const ringOffset = -2;
+
     ctx.drawImage(
-      ring,
-      0,
-      0,
-      canvas.width,
-      canvas.height
+        ring,
+        ringOffset,
+        ringOffset,
+        ringSize,
+        ringSize
     );
+
+}
 
   }
 }
