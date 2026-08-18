@@ -2,152 +2,580 @@
 <html lang="de">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Profilbild mit angepasstem Ring</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+<title>Profilbild mit Ring</title>
+
 <style>
-  body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-  canvas { border: 1px solid #ddd; cursor: grab; display: block; margin: 0 auto; }
-  .slider-container { width: 300px; margin: 10px auto; }
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    background: #f4f5f7;
+    color: #222;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px 40px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 520px;
+    background: white;
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  }
+
+  h1 {
+    margin: 0 0 8px;
+    text-align: center;
+    font-size: 26px;
+  }
+
+  .subtitle {
+    margin: 0 0 22px;
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+  }
+
+  .upload-area {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: 2px dashed #ccc;
+    border-radius: 12px;
+    text-align: center;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: 0.2s;
+  }
+
+  .upload-area:hover {
+    border-color: #888;
+    background: #fafafa;
+  }
+
+  #upload {
+    display: none;
+  }
+
+  .canvas-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    margin-bottom: 22px;
+  }
+
+  canvas {
+    width: min(100%, 400px);
+    height: auto;
+    aspect-ratio: 1 / 1;
+    display: block;
+    border-radius: 50%;
+    cursor: grab;
+    touch-action: none;
+    background: #eee;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.12);
+  }
+
+  canvas:active {
+    cursor: grabbing;
+  }
+
+  .control {
+    margin-top: 18px;
+  }
+
+  .control label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+
+  .slider {
+    width: 100%;
+    accent-color: #222;
+  }
+
+  .button {
+    width: 100%;
+    border: none;
+    border-radius: 12px;
+    padding: 15px;
+    margin-top: 22px;
+    background: #222;
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+
+  .button:hover {
+    background: #000;
+  }
+
+  .button:active {
+    transform: scale(0.99);
+  }
+
+  .status {
+    text-align: center;
+    font-size: 13px;
+    color: #777;
+    min-height: 18px;
+    margin-top: 12px;
+  }
+
+  @media (max-width: 480px) {
+    body {
+      padding: 12px;
+    }
+
+    .app {
+      padding: 18px;
+      border-radius: 16px;
+    }
+
+    h1 {
+      font-size: 23px;
+    }
+  }
 </style>
 </head>
+
 <body>
-<h2>Profilbild mit angepasstem Ring</h2>
-<input type="file" id="upload" accept="image/*"><br><br>
 
-<canvas id="canvas" width="400" height="400"></canvas>
+<div class="app">
 
-<div class="slider-container">
-  <label for="imgSlider">Profilbildgröße:</label>
-  <input type="range" id="imgSlider" min="0.1" max="3" step="0.01" value="1">
+  <h1>Profilbild mit Ring</h1>
+
+  <p class="subtitle">
+    Bild auswählen, positionieren und herunterladen
+  </p>
+
+  <label class="upload-area" for="upload">
+    📷 Profilbild auswählen
+  </label>
+
+  <input type="file" id="upload" accept="image/*">
+
+  <div class="canvas-wrapper">
+    <canvas id="canvas" width="400" height="400"></canvas>
+  </div>
+
+  <div class="control">
+
+    <label for="imgSlider">
+      Profilbildgröße
+    </label>
+
+    <input
+      class="slider"
+      type="range"
+      id="imgSlider"
+      min="0.1"
+      max="3"
+      step="0.01"
+      value="1"
+    >
+
+  </div>
+
+  <button class="button" id="dlBtn">
+    ⬇️ Bild herunterladen
+  </button>
+
+  <div class="status" id="status"></div>
+
 </div>
 
-<br>
-<button id="dlBtn">Bild herunterladen</button>
 
 <script>
+
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
+
 const upload = document.getElementById("upload");
 const dlBtn = document.getElementById("dlBtn");
 const imgSlider = document.getElementById("imgSlider");
+const status = document.getElementById("status");
 
-let img = new Image();
-let ring = new Image();
-ring.src = "ring.png"; // Dein Ringbild
 
-// Profilbild
-let imgX = 0, imgY = 0, imgScale = 1;
+// --------------------------------------------------
+// BILDER
+// --------------------------------------------------
 
-// Dragging
-let isDragging = false;
-let dragStartX = 0, dragStartY = 0;
-let startX = 0, startY = 0;
+const img = new Image();
+const ring = new Image();
 
-// Profilbild hochladen
-upload.addEventListener("change", e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    img.src = URL.createObjectURL(file);
-});
+let imageLoaded = false;
+let ringLoaded = false;
 
-img.onload = () => {
-    imgScale = 1;
-    imgX = (canvas.width - img.width) / 2;
-    imgY = (canvas.height - img.height) / 2;
+
+// WICHTIG:
+// Ring laden
+ring.onload = () => {
+  ringLoaded = true;
+
+  status.textContent = "";
+
+  if (imageLoaded) {
     draw();
+  }
 };
 
-// Zeichnen
+ring.onerror = () => {
+  status.textContent = "Fehler: ring.png konnte nicht geladen werden.";
+  console.error("ring.png konnte nicht geladen werden.");
+};
+
+ring.src = "ring.png";
+
+
+// --------------------------------------------------
+// PROFILBILD
+// --------------------------------------------------
+
+let imgX = 0;
+let imgY = 0;
+let imgScale = 1;
+
+
+// --------------------------------------------------
+// DRAGGING
+// --------------------------------------------------
+
+let isDragging = false;
+
+let dragStartX = 0;
+let dragStartY = 0;
+
+let startX = 0;
+let startY = 0;
+
+
+// --------------------------------------------------
+// BILD HOCHLADEN
+// --------------------------------------------------
+
+upload.addEventListener("change", (e) => {
+
+  const file = e.target.files[0];
+
+  if (!file) {
+    return;
+  }
+
+  status.textContent = "Bild wird geladen...";
+
+  const oldUrl = img.src;
+
+  img.onload = () => {
+
+    imageLoaded = true;
+
+    imgScale = 1;
+
+    /*
+      Bild zunächst so positionieren,
+      dass es ungefähr in den Kreis passt.
+    */
+
+    const scaleX = canvas.width / img.width;
+    const scaleY = canvas.height / img.height;
+
+    imgScale = Math.max(scaleX, scaleY);
+
+    imgX = (canvas.width - img.width * imgScale) / 2;
+    imgY = (canvas.height - img.height * imgScale) / 2;
+
+    imgSlider.value = imgScale;
+
+    /*
+      Falls der errechnete Wert außerhalb
+      des Sliders liegt, begrenzen wir ihn.
+    */
+
+    if (imgScale < 0.1) {
+      imgScale = 0.1;
+      imgSlider.value = 0.1;
+    }
+
+    if (imgScale > 3) {
+      imgScale = 3;
+      imgSlider.value = 3;
+    }
+
+    status.textContent = "";
+
+    draw();
+
+    /*
+      alten Object-URL freigeben
+    */
+
+    if (oldUrl && oldUrl.startsWith("blob:")) {
+      URL.revokeObjectURL(oldUrl);
+    }
+  };
+
+  img.onerror = () => {
+    status.textContent = "Das Bild konnte nicht geladen werden.";
+  };
+
+  img.src = URL.createObjectURL(file);
+});
+
+
+// --------------------------------------------------
+// ZEICHNEN
+// --------------------------------------------------
+
 function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = canvas.width / 2;
+  ctx.clearRect(
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
 
-    // Kreis-Clip für Profilbild
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
 
-    // Profilbild zeichnen
-    ctx.drawImage(img, imgX, imgY, img.width * imgScale, img.height * imgScale);
-    ctx.restore();
+  /*
+    Wenn noch kein Bild vorhanden ist,
+    nur einen neutralen Hintergrund anzeigen.
+  */
 
-    // Ring exakt als Overlay über den Rand legen
-    ctx.drawImage(ring, 0, 0, canvas.width, canvas.height);
+  if (!imageLoaded) {
+
+    ctx.fillStyle = "#eeeeee";
+
+    ctx.fillRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    return;
+  }
+
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const radius = canvas.width / 2;
+
+
+  // ------------------------------------------------
+  // PROFILBILD CLIPPEN
+  // ------------------------------------------------
+
+  ctx.save();
+
+  ctx.beginPath();
+
+  ctx.arc(
+    centerX,
+    centerY,
+    radius,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.closePath();
+
+  ctx.clip();
+
+
+  // ------------------------------------------------
+  // PROFILBILD
+  // ------------------------------------------------
+
+  ctx.drawImage(
+    img,
+    imgX,
+    imgY,
+    img.width * imgScale,
+    img.height * imgScale
+  );
+
+  ctx.restore();
+
+
+  // ------------------------------------------------
+  // RING
+  // ------------------------------------------------
+
+  if (ringLoaded) {
+
+    ctx.drawImage(
+      ring,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+  }
 }
 
 
-/* -------------------------------------
-   PC DRAGGING (MOUSE)
--------------------------------------- */
-canvas.addEventListener("mousedown", e => {
-    const mx = e.offsetX;
-    const my = e.offsetY;
+// --------------------------------------------------
+// POINTER POSITION
+// Funktioniert korrekt wenn Canvas auf Handy
+// kleiner dargestellt wird.
+// --------------------------------------------------
 
-    if (mx >= imgX && mx <= imgX + img.width * imgScale &&
-        my >= imgY && my <= imgY + img.height * imgScale) {
-        isDragging = true;
-        dragStartX = mx;
-        dragStartY = my;
-        startX = imgX;
-        startY = imgY;
-        canvas.style.cursor = "grabbing";
-    }
+function getPointerPos(clientX, clientY) {
+
+  const rect = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  return {
+    x: (clientX - rect.left) * scaleX,
+    y: (clientY - rect.top) * scaleY
+  };
+}
+
+
+// --------------------------------------------------
+// MOUSE
+// --------------------------------------------------
+
+canvas.addEventListener("mousedown", (e) => {
+
+  const pos = getPointerPos(
+    e.clientX,
+    e.clientY
+  );
+
+  const imageWidth = img.width * imgScale;
+  const imageHeight = img.height * imgScale;
+
+
+  if (
+    pos.x >= imgX &&
+    pos.x <= imgX + imageWidth &&
+    pos.y >= imgY &&
+    pos.y <= imgY + imageHeight
+  ) {
+
+    isDragging = true;
+
+    dragStartX = pos.x;
+    dragStartY = pos.y;
+
+    startX = imgX;
+    startY = imgY;
+
+  }
+
 });
 
-canvas.addEventListener("mousemove", e => {
-    if (!isDragging) return;
-    const dx = e.offsetX - dragStartX;
-    const dy = e.offsetY - dragStartY;
-    imgX = startX + dx;
-    imgY = startY + dy;
-    draw();
+
+canvas.addEventListener("mousemove", (e) => {
+
+  if (!isDragging) {
+    return;
+  }
+
+  const pos = getPointerPos(
+    e.clientX,
+    e.clientY
+  );
+
+  const dx = pos.x - dragStartX;
+  const dy = pos.y - dragStartY;
+
+  imgX = startX + dx;
+  imgY = startY + dy;
+
+  draw();
+
 });
+
 
 canvas.addEventListener("mouseup", () => {
-    isDragging = false;
-    canvas.style.cursor = "grab";
+
+  isDragging = false;
+
 });
+
 
 canvas.addEventListener("mouseleave", () => {
-    isDragging = false;
-    canvas.style.cursor = "grab";
+
+  isDragging = false;
+
 });
 
 
-/* -------------------------------------
-   TOUCH SUPPORT (HANDY / TABLET)
--------------------------------------- */
-function getTouchPos(touch) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top
-    };
-}
+// --------------------------------------------------
+// TOUCH / HANDY
+// --------------------------------------------------
 
-canvas.addEventListener("touchstart", e => {
+canvas.addEventListener(
+  "touchstart",
+  (e) => {
+
+    e.preventDefault();
+
     const touch = e.touches[0];
-    const pos = getTouchPos(touch);
 
-    if (pos.x >= imgX && pos.x <= imgX + img.width * imgScale &&
-        pos.y >= imgY && pos.y <= imgY + img.height * imgScale) {
-        isDragging = true;
-        dragStartX = pos.x;
-        dragStartY = pos.y;
-        startX = imgX;
-        startY = imgY;
+    const pos = getPointerPos(
+      touch.clientX,
+      touch.clientY
+    );
+
+    const imageWidth = img.width * imgScale;
+    const imageHeight = img.height * imgScale;
+
+
+    if (
+      pos.x >= imgX &&
+      pos.x <= imgX + imageWidth &&
+      pos.y >= imgY &&
+      pos.y <= imgY + imageHeight
+    ) {
+
+      isDragging = true;
+
+      dragStartX = pos.x;
+      dragStartY = pos.y;
+
+      startX = imgX;
+      startY = imgY;
+
     }
-});
 
-canvas.addEventListener("touchmove", e => {
-    if (!isDragging) return;
+  },
+  { passive: false }
+);
+
+
+canvas.addEventListener(
+  "touchmove",
+  (e) => {
+
+    if (!isDragging) {
+      return;
+    }
+
+    e.preventDefault();
+
     const touch = e.touches[0];
-    const pos = getTouchPos(touch);
+
+    const pos = getPointerPos(
+      touch.clientX,
+      touch.clientY
+    );
 
     const dx = pos.x - dragStartX;
     const dy = pos.y - dragStartY;
@@ -156,37 +584,188 @@ canvas.addEventListener("touchmove", e => {
     imgY = startY + dy;
 
     draw();
-});
+
+  },
+  { passive: false }
+);
+
 
 canvas.addEventListener("touchend", () => {
-    isDragging = false;
+
+  isDragging = false;
+
 });
 
 
-/* -------------------------------------
-   Zoom Slider
--------------------------------------- */
+// --------------------------------------------------
+// ZOOM SLIDER
+// --------------------------------------------------
+
 imgSlider.addEventListener("input", () => {
-    const oldScale = imgScale;
-    const newScale = parseFloat(imgSlider.value);
-    imgScale = newScale;
 
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
+  if (!imageLoaded) {
+    return;
+  }
 
-    imgX = centerX - (centerX - imgX) * (imgScale / oldScale);
-    imgY = centerY - (centerY - imgY) * (imgScale / oldScale);
+  const oldScale = imgScale;
 
-    draw();
+  const newScale = parseFloat(
+    imgSlider.value
+  );
+
+  imgScale = newScale;
+
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+
+  /*
+    Zoom um die Mitte des Bildes herum.
+  */
+
+  imgX =
+    centerX -
+    (centerX - imgX) *
+    (imgScale / oldScale);
+
+  imgY =
+    centerY -
+    (centerY - imgY) *
+    (imgScale / oldScale);
+
+
+  draw();
+
 });
 
-// Download
+
+// --------------------------------------------------
+// DOWNLOAD
+// --------------------------------------------------
+
 dlBtn.addEventListener("click", () => {
+
+  if (!imageLoaded) {
+
+    alert("Bitte zuerst ein Profilbild auswählen.");
+
+    return;
+  }
+
+
+  if (!ringLoaded) {
+
+    alert("Der Ring ist noch nicht geladen. Bitte kurz warten.");
+
+    return;
+  }
+
+
+  status.textContent = "Bild wird erstellt...";
+
+
+  canvas.toBlob(async (blob) => {
+
+    if (!blob) {
+
+      status.textContent =
+        "Das Bild konnte nicht erstellt werden.";
+
+      return;
+    }
+
+
+    const file = new File(
+      [blob],
+      "profilbild_mit_ring.png",
+      {
+        type: "image/png"
+      }
+    );
+
+
+    /*
+      HANDY:
+      Native Teilen-Funktion verwenden,
+      wenn der Browser das unterstützt.
+    */
+
+    if (
+      navigator.share &&
+      navigator.canShare &&
+      navigator.canShare({
+        files: [file]
+      })
+    ) {
+
+      try {
+
+        await navigator.share({
+          files: [file],
+          title: "Profilbild mit Ring"
+        });
+
+        status.textContent = "";
+
+        return;
+
+      } catch (error) {
+
+        /*
+          Benutzer hat z.B. den Teilen-Dialog
+          geschlossen.
+        */
+
+        console.log(
+          "Teilen abgebrochen:",
+          error
+        );
+
+      }
+
+    }
+
+
+    /*
+      PC / Browser Download
+    */
+
+    const url = URL.createObjectURL(blob);
+
     const a = document.createElement("a");
-    a.href = canvas.toDataURL("image/png");
+
+    a.href = url;
     a.download = "profilbild_mit_ring.png";
+
+    document.body.appendChild(a);
+
     a.click();
+
+    a.remove();
+
+
+    setTimeout(() => {
+
+      URL.revokeObjectURL(url);
+
+    }, 1000);
+
+
+    status.textContent = "Bild wurde erstellt.";
+
+  }, "image/png");
+
 });
+
+
+// --------------------------------------------------
+// START
+// --------------------------------------------------
+
+draw();
+
 </script>
+
 </body>
 </html>
