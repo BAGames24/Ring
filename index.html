@@ -369,7 +369,7 @@ function draw() {
 
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
-  const radius = 168;
+  const radius = 165.5;
 
 
   // ------------------------------------------------
@@ -416,16 +416,13 @@ function draw() {
 
 if (ringLoaded) {
 
-    const ringSize = canvas.width + 4;
-    const ringOffset = -2;
-
-    ctx.drawImage(
-        ring,
-        ringOffset,
-        ringOffset,
-        ringSize,
-        ringSize
-    );
+   ctx.drawImage(
+    ring,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+);
 
 }
 
